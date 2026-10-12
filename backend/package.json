@@ -1,0 +1,25 @@
+{
+  "name": "automated-sanitizing-backend",
+  "version": "1.0.0",
+  "description": "IoT Backend for Automated Sanitizing System (Arduino Uno + ESP32)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "test": "node test/api.test.js"
+  },
+  "keywords": [
+    "iot",
+    "arduino",
+    "esp32",
+    "dashboard",
+    "express"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2"
+  }
+}

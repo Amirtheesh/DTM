@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Automated Sanitizing System — IoT Web Dashboard</title>
+  <meta name="description" content="Real-Time IoT Monitoring Dashboard for Automated Sanitizing System using Arduino Uno and ESP32 gateway.">
+
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Dashboard Styling -->
+  <link rel="stylesheet" href="css/style.css">
+
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+  <!-- SIDEBAR NAVIGATION -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="logo-badge">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+        </svg>
+      </div>
+      <div>
+        <div class="logo-title">Sanitizer IoT</div>
+        <div class="logo-sub">Node.js Gateway</div>
+      </div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <div class="nav-label">Navigation</div>
+      <a href="#overview-section" class="nav-item active">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        <span>Overview</span>
+      </a>
+      <a href="#traffic-section" class="nav-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        <span>People & Occupancy</span>
+      </a>
+      <a href="#charts-section" class="nav-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+        <span>Telemetry Graphs</span>
+      </a>
+      <a href="#events-section" class="nav-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        <span>Event Activity Log</span>
+      </a>
+
+      <div class="nav-label" style="margin-top: 1rem;">Endpoints</div>
+      <a href="/api/sensor-data/latest" target="_blank" class="nav-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        <span>Latest API (JSON)</span>
+      </a>
+      <a href="/api/health" target="_blank" class="nav-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+        <span>Health Status</span>
+      </a>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="hw-badge-box">
+        <div class="title">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+          Hardware Setup
+        </div>
+        <div class="desc">Arduino Uno + ESP32 development board. Active-LOW 5V relay on D6.</div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN WORKSPACE -->
+  <main class="main-content">
+
+    <!-- TOP NAVIGATION BAR -->
+    <header class="top-navbar">
+      <div class="header-left">
+        <button class="mobile-toggle" id="mobileMenuBtn" aria-label="Toggle Navigation">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+        <div class="header-titles">
+          <h1>Automated Sanitizing System</h1>
+          <p>Real-Time IoT Monitoring Dashboard</p>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <!-- ESP32 Online/Offline Indicator -->
+        <div class="status-pill offline" id="espStatusPill">
+          <span class="status-dot"></span>
+          <span id="espStatusText">ESP32 OFFLINE</span>
+        </div>
+
+        <!-- Backend REST API Status Indicator -->
+        <div class="status-pill online" id="apiStatusPill">
+          <span class="status-dot"></span>
+          <span id="apiStatusText">API CONNECTED</span>
+        </div>
+
+        <!-- Demo Mode Switch (Disabled by default in production) -->
+        <div class="demo-toggle-wrap">
+          <span class="demo-toggle-label">Demo Mode</span>
+          <label class="switch" title="Toggle Demo Mode for visual UI simulation">
+            <input type="checkbox" id="demoModeToggle">
+            <span class="slider"></span>
+          </label>
+        </div>
+
+        <div class="last-sync-tag" id="lastUpdatedText">Connecting...</div>
+      </div>
+    </header>
+
+    <!-- NOTIFICATION & ALERT BANNERS -->
+    <div class="banner-container">
+      <!-- Demo Mode Warning Banner -->
+      <div class="alert-banner demo-active" id="demoModeBanner" style="display: none;">
+        <div class="alert-content">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          <div>
+            <strong>DEMO MODE ACTIVE:</strong> Generating simulated hardware pulses for UI visual testing. Disable toggle for real hardware ingestion.
+          </div>
+        </div>
+        <span class="badge-demo">DEMO DATA</span>
+      </div>
+
+      <!-- Offline / Stale Data Alert Banner -->
+      <div class="alert-banner offline-alert" id="offlineBanner" style="display: none;">
+        <div class="alert-content">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+          <div id="offlineDetail">
+            Waiting for initial transmission from ESP32 development board.
+          </div>
+        </div>
+      </div>
+
+      <!-- Backend API Unreachable Banner -->
+      <div class="alert-banner api-error" id="apiErrorBanner" style="display: none;">
+        <div class="alert-content">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <div id="apiErrorDetail">
+            API Connection Error: Node.js backend unreachable at port 5000.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MAIN BODY CONTENT -->
+    <div class="content-body">
+
+      <!-- ===================================================================
+           SECTION 1: OVERVIEW & SENSOR CARDS
+           STRICT HIERARCHY FOR EVERY CARD:
+           1. SENSOR NAME
+           2. LARGE VALUE DIRECTLY BELOW THE NAME
+           3. STATUS DIRECTLY BELOW THE VALUE
+           =================================================================== -->
+      <section id="overview-section">
+        <div class="section-header">
+          <div class="section-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+            Live Sensor Telemetry
+          </div>
+          <div class="section-desc">Real-time readings transmitted via ESP32 over Wi-Fi</div>
+        </div>
+
+        <div class="cards-grid">
+
+          <!-- CARD A: PEOPLE ENTERING -->
+          <div class="sensor-card highlight-cyan">
+            <div class="card-top-meta">
+              <div class="card-icon-wrap">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+              </div>
+              <span class="pin-badge">Arduino D3</span>
+            </div>
+            <!-- 1. SENSOR NAME -->
+            <div class="sensor-name">People Entering</div>
+            <!-- 2. LARGE VALUE DIRECTLY BELOW NAME -->
+            <div class="sensor-value-wrap">
+              <span class="sensor-large-value" id="cardEnteringValue">0</span>
+              <span class="sensor-unit">Persons</span>
+            </div>
+            <!-- 3. STATUS DIRECTLY BELOW VALUE -->
+            <div class="sensor-status-badge status-active" id="cardEnteringStatus">
+              Active Tracking
+            </div>
+            <!-- Meta Footer -->
+            <div class="card-footer-meta">
+              <div class="meta-row">
+                <span class="meta-label">Latest Entry Event:</span>
+                <span class="meta-val" id="cardEnteringTime">Awaiting event</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- CARD B: PEOPLE EXITING -->
+          <div class="sensor-card highlight-blue">
+            <div class="card-top-meta">
+              <div class="card-icon-wrap">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+              </div>
+              <span class="pin-badge">Arduino D4</span>
+            </div>
+            <!-- 1. SENSOR NAME -->
+            <div class="sensor-name">People Exiting</div>
+            <!-- 2. LARGE VALUE DIRECTLY BELOW NAME -->
+            <div class="sensor-value-wrap">
+              <span class="sensor-large-value" id="cardExitingValue">0</span>
+              <span class="sensor-unit">Persons</span>
+            </div>
+            <!-- 3. STATUS DIRECTLY BELOW VALUE -->
+            <div class="sensor-status-badge status-active" id="cardExitingStatus">
+              Active Tracking
+            </div>
+            <!-- Meta Footer -->
+            <div class="card-footer-meta">
+              <div class="meta-row">
+                <span class="meta-label">Latest Exit Event:</span>
+                <span class="meta-val" id="cardExitingTime">Awaiting event</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- CARD C: PEOPLE CURRENTLY INSIDE (ESTIMATED OCCUPANCY) -->
+          <div class="sensor-card highlight-emerald">
+            <div class="card-top-meta">
+              <div class="card-icon-wrap">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+              </div>
+              <span class="pin-badge">Calculated</span>
+            </div>
+            <!-- 1. SENSOR NAME -->
+            <div class="sensor-name">People Currently Inside</div>
+            <!-- 2. LARGE VALUE DIRECTLY BELOW NAME -->
+            <div class="sensor-value-wrap">
+              <span class="sensor-large-value" id="cardOccupancyValue">0</span>
+              <span class="sensor-unit">Estimated</span>
+            </div>
+            <!-- 3. STATUS DIRECTLY BELOW VALUE -->
+            <div class="sensor-status-badge status-active" id="cardOccupancyStatus">
+              Estimated Live Occupancy
+            </div>
+            <!-- Meta Footer & Explanation -->
+            <div class="card-footer-meta">
+              <div class="meta-row">
+                <span class="meta-label">Calculation:</span>
+                <span class="meta-val">Entries − Exits</span>
+              </div>
+              <div class="meta-disclaimer">
+                * Note: Estimated count. Missed detections, duplicate triggers, or people already inside when system powered on affect accuracy.
+              </div>
+            </div>
+          </div>
+
+          <!-- CARD D: IR ENTRY SENSOR — D3 -->
+          <div class="sensor-card">
+            <div class="card-top-meta">
+              <div class="card-icon-wrap">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M3 12h1m16 0h1M12 3v1m0 16v1"/></svg>
+              </div>
+              <span class="pin-badge">Arduino D3</span>
+            </div>
+            <!-- 1. SENSOR NAME -->
+            <div class="sensor-name">IR Entry Sensor (D3)</div>
+            <!-- 2. LARGE VALUE DIRECTLY BELOW NAME -->
+            <div class="sensor-value-wrap">
+              <span class="sensor-large-value" id="cardIrEntryValue">CLEAR</span>
+            </div>
+            <!-- 3. STATUS DIRECTLY BELOW VALUE -->
+            <div class="sensor-status-badge status-clear" id="cardIrEntryStatus">
+              Beam Unbroken
+            </div>
+            <!-- Meta Footer -->
+            <div class="card-footer-meta">
+              <div class="meta-row">
+                <span class="meta-label">Sensor Type:</span>
+                <span class="meta-val">Active Digital IR</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- CARD E: IR EXIT SENSOR — D4 -->
+          <div class="sensor-card">
+            <div class="card-top-meta">
+              <div class="card-icon-wrap">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M3 12h1m16 0h1M12 3v1m0 16v1"/></svg>
+              </div>
+              <span class="pin-badge">Arduino D4</span>
+            </div>
+            <!-- 1. SENSOR NAME -->
+            <div class="sensor-name">IR Exit Sensor (D4)</div>
+            <!-- 2. LARGE VALUE DIRECTLY BELOW NAME -->
+            <div class="sensor-value-wrap">
+              <span class="sensor-large-value" id="cardIrExitValue">CLEAR</span>
+            </div>
+            <!-- 3. STATUS DIRECTLY BELOW VALUE -->
+            <div class="sensor-status-badge status-clear" id="cardIrExitStatus">
+              Beam Unbroken
+            </div>
+            <!-- Meta Footer -->
+            <div class="card-footer-meta">
+              <div class="meta-row">
+                <span class="meta-label">Sensor Type:</span>
+                <span class="meta-val">Active Digital IR</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- CARD F: AIR QUALITY — MQ-135 (A1) -->
+          <div class="sensor-card highlight-amber">
+            <div class="card-top-meta">
+              <div class="card-icon-wrap">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+              </div>
+              <span class="pin-badge">Arduino A1</span>
+            </div>
+            <!-- 1. SENSOR NAME -->
+            <div class="sensor-name">Air Quality — MQ-135</div>
+            <!-- 2. LARGE VALUE DIRECTLY BELOW NAME -->
+            <div class="sensor-value-wrap">
+              <span class="sensor-large-value" id="cardMq135Value">--</span>
+              <span class="sensor-unit">Raw ADC</span>
+            </div>
+            <!-- 3. STATUS DIRECTLY BELOW VALUE -->
+            <div class="sensor-status-badge status-uncalibrated" id="cardMq135Status">
+              Uncalibrated Sensor
+            </div>
+            <!-- Meta Footer -->
+            <div class="card-footer-meta">
+              <div class="meta-row">
+                <span class="meta-label">ADC Range:</span>
+                <span class="meta-val" id="cardMq135ThresholdInfo">0 - 1023 (10-bit)</span>
+              </div>
+              <div class="meta-disclaimer">
+                Raw ADC reading only. Not calibrated PPM or official AQI.
+              </div>
+            </div>
+          </div>
+
+          <!-- CARD G: SANITIZER LEVEL (A0 RAINDROP SENSOR) -->
+          <div class="sensor-card">
+            <div class="card-top-meta">
+              <div class="card-icon-wrap">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>
+              </div>
+              <span class="pin-badge">Arduino A0</span>
+            </div>
+            <!-- 1. SENSOR NAME -->
+            <div class="sensor-name">Sanitizer Level (Raindrop Sensor)</div>
+            <!-- 2. LARGE VALUE DIRECTLY BELOW NAME -->
+            <div class="sensor-value-wrap">
+              <span class="sensor-large-value" id="cardSanitizerValue">Not Calibrated</span>
+            </div>
+            <!-- Progress Bar -->
+            <div class="progress-bar-container">
+              <div class="progress-bar-fill" id="cardSanitizerBarFill"></div>
+            </div>
+            <!-- 3. STATUS DIRECTLY BELOW VALUE -->
+            <div class="sensor-status-badge status-uncalibrated" id="cardSanitizerStatus">
+              Calibration Required
+            </div>
+            <!-- Meta Footer -->
+            <div class="card-footer-meta">
+              <div class="meta-row">
+                <span class="meta-label">Raindrop Analog Sensor:</span>
+                <span class="meta-val" id="cardSanitizerRaw">Raw ADC: --</span>
+              </div>
+              <div class="meta-disclaimer">
+                Raw analog conductance. Calibrated percentage displayed only when dry/wet reference curve is programmed.
+              </div>
+            </div>
+          </div>
+
+          <!-- CARD H: SANITIZER PUMP / RELAY (D6) -->
+          <div class="sensor-card">
+            <div class="card-top-meta">
+              <div class="card-icon-wrap">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>
+              </div>
+              <span class="pin-badge">Arduino D6</span>
+            </div>
+            <!-- 1. SENSOR NAME -->
+            <div class="sensor-name">Sanitizer Pump / Relay</div>
+            <!-- 2. LARGE VALUE DIRECTLY BELOW NAME -->
+            <div class="sensor-value-wrap">
+              <span class="sensor-large-value" id="cardRelayValue">OFF</span>
+            </div>
+            <!-- 3. STATUS DIRECTLY BELOW VALUE -->
+            <div class="sensor-status-badge status-off" id="cardRelayStatus">
+              Relay De-energized
+            </div>
+            <!-- Meta Footer -->
+            <div class="card-footer-meta">
+              <div class="meta-row">
+                <span class="meta-label">Command State:</span>
+                <span class="meta-val">Active-LOW 5V Relay</span>
+              </div>
+              <div class="meta-disclaimer">
+                Indicates electronic relay output command state. Does not guarantee physical liquid dispense.
+              </div>
+            </div>
+          </div>
+
+          <!-- CARD I: ESP32 CONNECTION -->
+          <div class="sensor-card">
+            <div class="card-top-meta">
+              <div class="card-icon-wrap">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>
+              </div>
+              <span class="pin-badge">Wi-Fi / REST</span>
+            </div>
+            <!-- 1. SENSOR NAME -->
+            <div class="sensor-name">ESP32 Connection</div>
+            <!-- 2. LARGE VALUE DIRECTLY BELOW NAME -->
+            <div class="sensor-value-wrap">
+              <span class="sensor-large-value" id="cardEspValue">OFFLINE</span>
+            </div>
+            <!-- 3. STATUS DIRECTLY BELOW VALUE -->
+            <div class="sensor-status-badge status-offline" id="cardEspStatus">
+              No Packets Received
+            </div>
+            <!-- Meta Footer -->
+            <div class="card-footer-meta">
+              <div class="meta-row">
+                <span class="meta-label">Last Transmission:</span>
+                <span class="meta-val" id="cardEspLastSeen">Never</span>
+              </div>
+              <div class="meta-row">
+                <span class="meta-label">Stale Timeout:</span>
+                <span class="meta-val">15 Seconds</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- ===================================================================
+           SECTION 2: HISTORICAL CHARTS (Chart.js)
+           =================================================================== -->
+      <section id="charts-section">
+        <div class="section-header">
+          <div class="section-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+            Live Sensor Trends & Historical Graphs
+          </div>
+          <div class="section-desc">Plots real received telemetry points over time</div>
+        </div>
+
+        <div class="charts-grid">
+          <!-- Air Quality History -->
+          <div class="chart-card">
+            <div class="chart-header">
+              <div class="chart-title-area">
+                <h3>Air Quality Trend (MQ-135)</h3>
+                <p>Analog Raw ADC (Pin A1) over time</p>
+              </div>
+              <span class="pin-badge">MQ-135 ADC</span>
+            </div>
+            <div class="chart-canvas-wrap">
+              <canvas id="airQualityCanvas"></canvas>
+            </div>
+          </div>
+
+          <!-- Sanitizer Level History -->
+          <div class="chart-card">
+            <div class="chart-header">
+              <div class="chart-title-area">
+                <h3>Sanitizer Level Trend (Raindrop Sensor)</h3>
+                <p>Analog Raw ADC & Calibrated % (Pin A0)</p>
+              </div>
+              <span class="pin-badge">Raindrop ADC</span>
+            </div>
+            <div class="chart-canvas-wrap">
+              <canvas id="sanitizerCanvas"></canvas>
+            </div>
+          </div>
+
+          <!-- Occupancy & Traffic History -->
+          <div class="chart-card" style="grid-column: 1 / -1;">
+            <div class="chart-header">
+              <div class="chart-title-area">
+                <h3>Cumulative Traffic & Estimated Occupancy</h3>
+                <p>Tracking entry counts, exit counts, and calculated room presence</p>
+              </div>
+              <span class="pin-badge">D3 / D4 Counters</span>
+            </div>
+            <div class="chart-canvas-wrap">
+              <canvas id="occupancyCanvas"></canvas>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===================================================================
+           SECTION 3: REAL-TIME EVENT LOGS
+           =================================================================== -->
+      <section id="events-section">
+        <div class="section-header">
+          <div class="section-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+            System Event Activity Stream
+          </div>
+          <div class="section-desc">Real-time log of entry/exit passages and pump relay triggers</div>
+        </div>
+
+        <div class="events-grid">
+          <!-- People Entry & Exit Log -->
+          <div class="events-panel">
+            <div class="chart-header">
+              <div class="chart-title-area">
+                <h3>People Entry & Exit Events</h3>
+                <p>Logged whenever cumulative counters advance</p>
+              </div>
+              <span class="pin-badge">D3 / D4</span>
+            </div>
+            <div class="events-list" id="entryExitEventsList">
+              <div class="empty-state">Awaiting entry and exit activity from Arduino...</div>
+            </div>
+          </div>
+
+          <!-- Pump / Relay Activations Log -->
+          <div class="events-panel">
+            <div class="chart-header">
+              <div class="chart-title-area">
+                <h3>Pump Relay Activation Events</h3>
+                <p>Logged on Active-LOW relay state transitions</p>
+              </div>
+              <span class="pin-badge">D6 Relay</span>
+            </div>
+            <div class="events-list" id="relayEventsList">
+              <div class="empty-state">Awaiting pump activations...</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <!-- APPLICATION SCRIPTS -->
+  <script src="js/api.js"></script>
+  <script src="js/charts.js"></script>
+  <script src="js/app.js"></script>
+
+</body>
+</html>
